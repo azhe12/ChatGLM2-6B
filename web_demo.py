@@ -3,12 +3,20 @@ import gradio as gr
 import mdtex2html
 from utils import load_model_on_gpus
 
-tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True)
-model = AutoModel.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True).cuda()
+model_dir="/data/test/models/chatglm2-6b-int4"
+tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+model = AutoModel.from_pretrained(model_dir, trust_remote_code=True).cuda()
 # 多显卡支持，使用下面两行代替上面一行，将num_gpus改为你实际的显卡数量
 # from utils import load_model_on_gpus
 # model = load_model_on_gpus("THUDM/chatglm2-6b", num_gpus=2)
-model = model.eval()
+
+# 加入下面这两行，将huggingface模型转换成fastllm模型
+# 目前from_hf接口只能接受原始模型，或者ChatGLM的int4, int8量化模型，暂时不能转换其它量化模型
+from fastllm_pytools import llm
+model = llm.from_hf(model, tokenizer, dtype = "int4") # dtype支持 "float16", "int8", "int4"
+
+
+#model = model.eval()
 
 """Override Chatbot.postprocess"""
 
@@ -105,4 +113,4 @@ with gr.Blocks() as demo:
 
     emptyBtn.click(reset_state, outputs=[chatbot, history, past_key_values], show_progress=True)
 
-demo.queue().launch(share=False, inbrowser=True)
+demo.queue().launch(server_name="0.0.0.0", share=False, inbrowser=True)
